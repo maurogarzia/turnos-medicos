@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pedir turno médico</title>
+  <style>
+  :root {
+    --fondo: #f7f9fb;
+    --superficie: #ffffff;
+    --texto: #14202b;
+    --texto-suave: #3b4b5a;
+    --primario: #0a4d68;
+    --primario-oscuro: #073549;
+    --borde: #4d6275;
+    --foco: #ffb000;
+    --error-fondo: #fdecea;
+    --error-borde: #a1160a;
+    --aviso-fondo: #e9f3f8;
+  }
+  * { box-sizing: border-box; }
+  html { font-size: 112.5%; }               /* 18 px de base */
+  html.texto-grande { font-size: 137.5%; }  /* 22 px */
+  html.texto-muy-grande { font-size: 162.5%; } /* 26 px */
+  body {
+    margin: 0; background: var(--fondo); color: var(--texto);
+    font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+    line-height: 1.55;
+  }
+  .contenedor { max-width: 44rem; margin: 0 auto; padding: 1rem; }
+  .saltar { position: absolute; left: -999px; top: 0; background: #fff; padding: .75rem; z-index: 10; }
+  .saltar:focus { left: 0; }
+
+  .encabezado { background: var(--superficie); border-bottom: 3px solid var(--primario); }
+  .marca { margin: 0 0 .5rem; font-weight: 700; font-size: 1.1rem; color: var(--primario); }
+  .herramientas { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .5rem; }
+  .herr {
+    min-height: 44px; padding: .4rem .8rem; font: inherit; font-size: .9rem; color: var(--texto);
+    background: #fff; border: 2px solid var(--borde); border-radius: .5rem; cursor: pointer;
+    display: inline-flex; align-items: center; gap: .4rem;
+  }
+  .herr[hidden] { display: none; }
+  .herr input { width: 1.3rem; height: 1.3rem; }
+  .paso-texto { margin: 0 0 .25rem; font-weight: 700; }
+  progress { width: 100%; height: 1rem; accent-color: var(--primario); }
+
+  h1 { font-size: 1.6rem; line-height: 1.25; margin: 1rem 0 .75rem; }
+  h1:focus { outline: none; }
+  h1 label { display: block; }
+  .sub { margin: 1rem 0 0; color: var(--texto-suave); font-size: .95rem; }
+  .ayuda { color: var(--texto-suave); margin: 0 0 1rem; }
+
+  .botones { display: grid; gap: 1rem; margin: 1.25rem 0; }
+  .acciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: .75rem; margin-top: 1.75rem;
+              padding-top: 1.25rem; border-top: 2px solid #c9d3dc; }
+  .btn {
+    display: block; width: 100%; min-height: 56px; padding: .75rem 1rem; font: inherit; font-weight: 700;
+    border: 3px solid var(--primario); border-radius: .6rem; cursor: pointer; text-align: center;
+  }
+  .btn.prim { background: var(--primario); color: #fff; }
+  .btn.prim:hover { background: var(--primario-oscuro); }
+  .btn.sec { background: #fff; color: var(--primario-oscuro); }
+  .btn.sec:hover { background: #eaf2f6; }
+  .btn.opcion { text-align: left; }
+  .btn:disabled { opacity: .55; cursor: not-allowed; }
+  .op-titulo { display: block; font-size: 1.1rem; }
+  .op-desc { display: block; font-weight: 400; color: var(--texto-suave); margin-top: .15rem; }
+  .btn.prim .op-desc { color: #fff; }
+
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, label:focus-within {
+    outline: 4px solid #000; outline-offset: 2px; box-shadow: 0 0 0 7px var(--foco);
+  }
+
+  .campo-fila { display: grid; grid-template-columns: 1fr; gap: .75rem; }
+  @media (min-width: 34rem) { .campo-fila { grid-template-columns: 1fr auto; } .campo-fila .btn { width: auto; min-width: 9rem; } }
+  input[type="text"], input[type="tel"] {
+    width: 100%; min-height: 56px; padding: .6rem .8rem; font: inherit; color: var(--texto);
+    background: #fff; border: 3px solid var(--borde); border-radius: .6rem;
+  }
+
+  .error, .info-error {
+    background: var(--error-fondo); border: 3px solid var(--error-borde); border-left-width: 12px;
+    padding: .75rem 1rem; border-radius: .5rem; margin: 1rem 0; font-weight: 600;
+  }
+  .error:empty { display: none; }
+  .consejo, .nota {
+    background: var(--aviso-fondo); border: 2px solid var(--primario); border-radius: .5rem; padding: .75rem 1rem; margin: 1rem 0;
+  }
+  .estado { min-height: 1.5rem; color: var(--texto-suave); font-weight: 600; }
+
+  .resumen { background: #fff; border: 3px solid var(--borde); border-radius: .6rem; padding: .5rem 1rem; margin: 1rem 0; }
+  .resumen div { padding: .6rem 0; border-bottom: 1px solid #c9d3dc; }
+  .resumen div:last-child { border-bottom: 0; }
+  .resumen dt { font-size: .9rem; color: var(--texto-suave); }
+  .resumen dd { margin: 0; font-weight: 700; font-size: 1.1rem; }
+  .exito { background: #e6f4ea; border: 3px solid #1b6a2f; border-left-width: 12px; border-radius: .5rem; padding: .75rem 1rem; }
+  .codigo { font-size: 1.4rem; font-weight: 700; letter-spacing: .05em; }
+
+  .pie { color: var(--texto-suave); font-size: .9rem; border-top: 2px solid #c9d3dc; margin-top: 2rem; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+</style>
+
+</head>
+<body>
+  <a class="saltar" href="#pantalla">Ir al contenido</a>
+
+  <header class="encabezado">
+    <div class="contenedor">
+      <p class="marca">Pedir turno médico</p>
+      <div class="herramientas" role="group" aria-label="Opciones de lectura">
+        <button type="button" id="btnTexto" class="herr" aria-label="Cambiar el tamaño de la letra">Letra: normal</button>
+        <label id="lblVoz" class="herr" hidden>
+          <input type="checkbox" id="chkVoz"> Leer en voz alta
+        </label>
+      </div>
+      <div id="bloqueProgreso" class="progreso" hidden>
+        <p id="pasoTexto" class="paso-texto"></p>
+        <progress id="barra" max="5" value="0" aria-labelledby="pasoTexto"></progress>
+      </div>
+    </div>
+  </header>
+
+  <main class="contenedor">
+    <div id="pantalla" tabindex="-1"></div>
+    <p id="estado" class="estado" role="status" aria-live="polite"></p>
+  </main>
+
+  <footer class="pie contenedor">
+    <p><strong>Proyecto académico de demostración.</strong> Los horarios, las duraciones y los turnos son simulados.
+    Usá solamente datos ficticios.</p>
+  </footer>
+
+  <script>
+// ---------------------------------------------------------------------------
+// PUENTE: hace que la pantalla "hable" con Apps Script usando fetch().
+// Reemplaza a google.script.run, que solo existe dentro de Apps Script.
+// ---------------------------------------------------------------------------
+// PEGÁ ACÁ la URL de tu implementación de Apps Script (la que termina en /exec):
+var URL_APPS_SCRIPT = 'https://script.google.com/macros/s/AKfycbyLcM6IG6hGwYvibPr3V6n-SWPGP2P1_LJtdZ5tZPjbJQPP0w7uQ7Lz1T4FN9WpcPgY/exec';
+
+window.google = { script: { run: crearEjecutor(null, null) } };
+
+function crearEjecutor(alExito, alFallar) {
+  return new Proxy({}, {
+    get: function (_, nombre) {
+      if (nombre === 'withSuccessHandler') { return function (f) { return crearEjecutor(f, alFallar); }; }
+      if (nombre === 'withFailureHandler') { return function (f) { return crearEjecutor(alExito, f); }; }
+      return function () {
+        var args = Array.prototype.slice.call(arguments);
+        var fallar = function (e) { if (alFallar) { alFallar(e); } };
+        if (URL_APPS_SCRIPT.indexOf('PEGAR_AQUI') === 0) {
+          console.error('Falta configurar URL_APPS_SCRIPT en index.html');
+          fallar(new Error('URL sin configurar'));
+          return;
+        }
+        // Sin encabezados especiales: así el navegador no hace una consulta previa (CORS) que Apps Script no responde.
+        fetch(URL_APPS_SCRIPT, { method: 'POST', body: JSON.stringify({ accion: String(nombre), args: args }) })
+          .then(function (r) { if (!r.ok) { throw new Error('HTTP ' + r.status); } return r.json(); })
+          .then(function (datos) { if (alExito) { alExito(datos); } })
+          .catch(fallar);
+      };
+    }
+  });
+}
+</script>
+<script>
+function iniciarApp() {
+  'use strict';
+
+  // ------------------------------------------------------------------
+  // Estado de la conversación. Se guarda solo en la memoria del navegador.
+  // ------------------------------------------------------------------
+  var COBERTURAS = ['PAMI', 'OSEP', 'Particular'];
+  // Número FICTICIO del operador (solo para la demostración). Cambialo acá si hace falta.
+  var TELEFONO_OPERADOR_TEXTO = '+54 261 555-0123';
+  var TELEFONO_OPERADOR_LINK = '+542615550123';
+  var estado = {
+    modo: null,
+    datos: { nombre: '', apellido: '', documento: '', telefono: '' },
+    cobertura: null, especialidad: null, hospital: null, dia: null, slot: null,
+    desplazamiento: 0, editando: false, pantalla: null, pila: [], token: 0,
+    preguntaActual: '', ayudaTexto: '', ayudaDe: '', ocupado: false, rec: null,
+    solicitudId: '', lista: [], resultado: null, voz: false
+  };
+  var RENDER = {};
+  var ACCIONES = {};
+  var PASO = { quien: 0, nombre: 1, apellido: 1, documento: 1, telefono: 1, cobertura: 2, especialidad: 3,
+               hospital: 4, dia: 4, horario: 4, resumen: 5, modificar: 5, exito: 5, ayuda: -1 };
+
+  var $pantalla = document.getElementById('pantalla');
+  var $estado = document.getElementById('estado');
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var HAY_VOZ_SALIDA = 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
+
+  // ------------------------------------------------------------------
+  // Ayudas pequeñas
+  // ------------------------------------------------------------------
+  function esc(t) {
+    return String(t === null || t === undefined ? '' : t).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function t(paciente, acompanante) { return estado.modo === 'acompanante' ? acompanante : paciente; }
+  function btn(texto, accion, clase, valor) {
+    return '<button type="button" class="btn ' + clase + '" data-accion="' + accion + '"' +
+      (valor !== undefined ? ' data-valor="' + esc(valor) + '"' : '') + '>' + esc(texto) + '</button>';
+  }
+  function btnOpcion(titulo, desc, accion, valor, clase) {
+    return '<button type="button" class="btn ' + (clase || 'sec') + ' opcion" data-accion="' + accion + '" data-valor="' + esc(valor) + '">' +
+      '<span class="op-titulo">' + esc(titulo) + '</span>' +
+      (desc ? '<span class="op-desc">' + esc(desc) + '</span>' : '') + '</button>';
+  }
+  function mostrarEstado(texto) { $estado.textContent = texto || ''; }
+  function setPregunta(pregunta, ayuda) { estado.preguntaActual = pregunta; estado.ayudaTexto = ayuda || ''; }
+  function enmascarar(doc) { return doc.length <= 3 ? doc : new Array(doc.length - 2).join('*') + doc.slice(-3); }
+  function nuevoCodigoSolicitud() {
+    var c = 'abcdefghijklmnopqrstuvwxyz0123456789', s = '';
+    for (var i = 0; i < 20; i++) { s += c.charAt(Math.floor(Math.random() * c.length)); }
+    return s;
+  }
+
+  function barraAcciones() {
+    var h = '<div class="acciones" role="group" aria-label="Volver, repetir la pregunta o pedir ayuda">';
+    if (estado.pila.length) { h += btn('← Volver', 'volver', 'sec'); }
+    h += btn('🔊 Repetir la pregunta', 'repetir', 'sec');
+    h += btn('❓ Necesito ayuda', 'ayuda', 'sec');
+    return h + '</div>';
+  }
+
+  // ------------------------------------------------------------------
+  // Navegación
+  // ------------------------------------------------------------------
+  function mostrar(nombre, opciones) {
+    opciones = opciones || {};
+    if (estado.pantalla && !opciones.sinHistorial && estado.pantalla !== nombre) { estado.pila.push(estado.pantalla); }
+    estado.pantalla = nombre;
+    estado.token++;
+    detenerVoz();
+    mostrarEstado('');
+    RENDER[nombre]();
+    actualizarProgreso(PASO[nombre]);
+    var titulo = $pantalla.querySelector('h1');
+    if (titulo) { titulo.setAttribute('tabindex', '-1'); titulo.focus(); }
+    window.scrollTo(0, 0);
+    if (estado.voz && estado.preguntaActual) { hablar(estado.preguntaActual); }
+  }
+
+  function volver() {
+    if (!estado.pila.length) { return; }
+    mostrar(estado.pila.pop(), { sinHistorial: true });
+  }
+
+  function actualizarProgreso(n) {
+    if (n < 0) { return; }
+    var bloque = document.getElementById('bloqueProgreso');
+    if (n === 0) { bloque.hidden = true; return; }
+    bloque.hidden = false;
+    document.getElementById('pasoTexto').textContent = 'Paso ' + n + ' de 5';
+    document.getElementById('barra').value = n;
+  }
+
+  function reiniciarTodo() {
+    estado.modo = null; estado.datos = { nombre: '', apellido: '', documento: '', telefono: '' };
+    estado.cobertura = null; estado.especialidad = null; estado.hospital = null; estado.dia = null; estado.slot = null;
+    estado.desplazamiento = 0; estado.editando = false; estado.pila = []; estado.pantalla = null;
+    estado.solicitudId = ''; estado.resultado = null;
+    mostrar('quien', { sinHistorial: true });
+  }
+
+  // ------------------------------------------------------------------
+  // Comunicación con Apps Script (google.script.run)
+  // ------------------------------------------------------------------
+  function llamar(nombreFuncion, args, alExito, alReintentar) {
+    var token = estado.token;
+    mostrarEstado('Cargando, un momento…');
+    var lento = setTimeout(function () { mostrarEstado('Está tardando más de lo normal. Seguimos intentando…'); }, 15000);
+    var corredor = google.script.run
+      .withSuccessHandler(function (res) {
+        clearTimeout(lento); mostrarEstado('');
+        if (token !== estado.token) { return; }
+        alExito(res);
+      })
+      .withFailureHandler(function () {
+        clearTimeout(lento); mostrarEstado('');
+        if (token !== estado.token) { return; }
+        errorConexion(alReintentar || function () { llamar(nombreFuncion, args, alExito, alReintentar); });
+      });
+    corredor[nombreFuncion].apply(corredor, args);
+  }
+
+  function errorConexion(reintentar, esConfirmacion) {
+    estado.ocupado = false;
+    estado.reintento = reintentar;
+    var msg = esConfirmacion
+      ? 'No pudimos comunicarnos con el sistema. No sabemos si el turno se guardó: no lo des por confirmado. Revisá tu conexión y tocá "Intentar de nuevo". Si ya estaba guardado, el sistema no lo repite.'
+      : 'No pudimos comunicarnos con el sistema. Revisá tu conexión a internet. No se guardó ningún turno.';
+    $pantalla.innerHTML = '<h1 id="titulo">No hay conexión</h1><p class="info-error" role="alert">Atención: ' + esc(msg) + '</p>' +
+      '<div class="botones">' + btn('Intentar de nuevo', 'reintentar', 'prim') + '</div>' + barraAcciones();
+    $pantalla.querySelector('h1').focus();
+  }
+
+  function errorServidor(res) {
+    estado.ocupado = false;
+    $pantalla.innerHTML = '<h1 id="titulo">Algo no salió bien</h1><p class="info-error" role="alert">Atención: ' +
+      esc((res && res.mensaje) || 'Ocurrió un problema. Probá de nuevo.') + '</p>' + barraAcciones();
+    $pantalla.querySelector('h1').focus();
+  }
+
+  // ------------------------------------------------------------------
+  // Voz (todo es opcional)
+  // ------------------------------------------------------------------
+  function hablar(texto) {
+    if (!HAY_VOZ_SALIDA || !texto) { return; }
+    window.speechSynthesis.cancel();
+    var u = new SpeechSynthesisUtterance(texto);
+    u.lang = 'es-AR'; u.rate = 0.9;
+    window.speechSynthesis.speak(u);
+  }
+  function detenerVoz() {
+    if (HAY_VOZ_SALIDA) { window.speechSynthesis.cancel(); }
+    if (estado.rec) { try { estado.rec.abort(); } catch (e) { /* nada */ } estado.rec = null; }
+  }
+
+  // ------------------------------------------------------------------
+  // Micrófono: primero se REVISA y después se escucha.
+  // ------------------------------------------------------------------
+
+  // Revisa si el micrófono se puede usar. Devuelve una promesa con { ok, codigo, mensaje }.
+  function probarMicrofono() {
+    var falla = function (codigo, mensaje) { return { ok: false, codigo: codigo, mensaje: mensaje }; };
+
+    // 1) ¿El navegador sabe reconocer la voz? (Chrome y Edge sí; Firefox no)
+    if (!SR) {
+      return Promise.resolve(falla('sin-soporte', 'Este navegador no puede reconocer la voz. Probá con Google Chrome o Microsoft Edge.'));
+    }
+
+    // 2) ¿Esta página tiene permitido el micrófono? Google muestra la aplicación dentro de un
+    //    "marco" y, si el marco no lo permite, el navegador lo bloquea aunque tus permisos estén bien.
+    var politica = document.permissionsPolicy || document.featurePolicy;
+    if (politica && typeof politica.allowsFeature === 'function' && !politica.allowsFeature('microphone')) {
+      return Promise.resolve(falla('marco-bloqueado', 'El micrófono está bloqueado por la configuración de esta página, no por tu navegador.'));
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      return Promise.resolve(falla('sin-api', 'Este navegador no permite usar el micrófono en esta página.'));
+    }
+
+    // 3) ¿Hay un micrófono conectado?
+    var buscar = navigator.mediaDevices.enumerateDevices ? navigator.mediaDevices.enumerateDevices() : Promise.resolve(null);
+    return buscar.catch(function () { return null; }).then(function (dispositivos) {
+      if (dispositivos && !dispositivos.some(function (d) { return d.kind === 'audioinput'; })) {
+        return falla('sin-microfono', 'No se detectó ningún micrófono en este dispositivo. Conectá uno o revisá que esté activado.');
+      }
+
+      // 4) Pedimos permiso de verdad. Esto hace que el navegador muestre el cartel "Permitir".
+      return navigator.mediaDevices.getUserMedia({ audio: true }).then(function (flujo) {
+        flujo.getTracks().forEach(function (pista) { pista.stop(); });   // lo apagamos: solo era una prueba
+        return { ok: true };
+      }, function (err) {
+        var nombre = err && err.name;
+        if (nombre === 'NotFoundError' || nombre === 'DevicesNotFoundError') {
+          return falla('sin-microfono', 'No se detectó ningún micrófono en este dispositivo. Conectá uno o revisá que esté activado.');
+        }
+        if (nombre === 'NotAllowedError' || nombre === 'PermissionDeniedError' || nombre === 'SecurityError') {
+          return falla('permiso-denegado', 'No se dio permiso para usar el micrófono. Tocá el ícono que está junto a la dirección del sitio, elegí "Permitir" para el micrófono y recargá la página.');
+        }
+        if (nombre === 'NotReadableError' || nombre === 'TrackStartError') {
+          return falla('microfono-ocupado', 'El micrófono está siendo usado por otro programa. Cerralo e intentá de nuevo.');
+        }
+        return falla('error-' + (nombre || 'desconocido'), 'No pudimos usar el micrófono.');
+      });
+    });
+  }
+
+  // Botón "Hablar": revisa el micrófono y, si está todo bien, escucha y escribe lo que entendió.
+  function escucharEn(idCampo, clave) {
+    var input = document.getElementById(idCampo);
+    var boton = document.getElementById('btnHablar');
+    var msgVoz = function (texto) {
+      var e = document.getElementById('estadoVoz');
+      if (e) { e.textContent = texto; } else { mostrarEstado(texto); }
+    };
+    var alternativa = ' Mientras tanto, podés escribir la respuesta o usar el micrófono del teclado de tu celular.';
+    if (!input) { return; }
+    detenerVoz();
+    msgVoz('Revisando el micrófono…');
+
+    probarMicrofono().then(function (prueba) {
+      if (!prueba.ok) {
+        msgVoz(prueba.mensaje + alternativa + ' (Código técnico: ' + prueba.codigo + ')');
+        return;
+      }
+      escucharConReconocimiento(input, boton, clave, msgVoz, alternativa);
+    });
+  }
+
+  function escucharConReconocimiento(input, boton, clave, msgVoz, alternativa) {
+    var rec = new SR();
+    var empezo = false;
+    estado.rec = rec;
+    rec.lang = 'es-AR'; rec.interimResults = false; rec.maxAlternatives = 1; rec.continuous = false;
+    var espera = setTimeout(function () {
+      if (!empezo) {
+        msgVoz('El micrófono no respondió.' + alternativa);
+        try { rec.abort(); } catch (e) { /* nada */ }
+      }
+    }, 8000);
+    rec.onstart = function () {
+      empezo = true; clearTimeout(espera);
+      msgVoz('Te estoy escuchando… Hablá ahora.');
+      if (boton) { boton.textContent = '🎤 Escuchando…'; }
+    };
+    rec.onresult = function (ev) {
+      var dicho = ev.results[0][0].transcript;
+      var valor = (clave === 'documento' || clave === 'telefono') ? dicho.replace(/[^\d+]/g, '') : dicho;
+      input.value = valor.trim();
+      msgVoz(valor ? 'Entendí: "' + dicho + '". Revisalo y corregilo si hace falta.' : 'No entendí números. Probá de nuevo o escribilo.');
+    };
+    rec.onerror = function (ev) {
+      empezo = true; clearTimeout(espera);
+      var mensajes = {
+        'not-allowed': 'El navegador no dejó usar el micrófono.',
+        'service-not-allowed': 'El navegador no dejó usar el reconocimiento de voz.',
+        'no-speech': 'No te escuchamos. Probá de nuevo y hablá más cerca del micrófono.',
+        'audio-capture': 'No se detectó ningún micrófono.',
+        'network': 'Falló la conexión a internet necesaria para entender la voz.'
+      };
+      msgVoz((mensajes[ev.error] || 'No pudimos usar la voz.') + alternativa + ' (Código técnico: ' + ev.error + ')');
+    };
+    rec.onend = function () {
+      clearTimeout(espera); estado.rec = null;
+      if (boton) { boton.textContent = '🎤 Hablar'; }
+    };
+    try { rec.start(); } catch (e) { clearTimeout(espera); msgVoz('No pudimos activar el micrófono.' + alternativa); }
+  }
+
+  // ------------------------------------------------------------------
+  // Paso 1: datos personales (una pregunta por pantalla)
+  // ------------------------------------------------------------------
+  function validarNombre(v, que) {
+    v = v.replace(/\s+/g, ' ').trim();
+    if (!v) { return { error: 'Escribí ' + que + '.' }; }
+    if (!/^[\p{L}][\p{L}' .-]{1,59}$/u.test(v)) { return { error: 'Usá solo letras, sin números. Mínimo 2 letras.' }; }
+    return { valor: v };
+  }
+  var CAMPOS = {
+    nombre: { n: 1, siguiente: 'apellido', autocomplete: 'given-name', modo: 'text',
+      pregunta: function () { return t('¿Cuál es tu nombre?', '¿Cuál es el nombre de la persona que necesita el turno?'); },
+      ayuda: 'Escribí solo el nombre de pila. Por ejemplo: María.',
+      validar: function (v) { return validarNombre(v, 'el nombre'); } },
+    apellido: { n: 2, siguiente: 'documento', autocomplete: 'family-name', modo: 'text',
+      pregunta: function () { return t('¿Cuál es tu apellido?', '¿Cuál es el apellido de la persona?'); },
+      ayuda: 'Escribí el apellido. Por ejemplo: Pérez.',
+      validar: function (v) { return validarNombre(v, 'el apellido'); } },
+    documento: { n: 3, siguiente: 'telefono', autocomplete: 'off', modo: 'numeric',
+      pregunta: function () { return t('¿Cuál es tu número de documento?', '¿Cuál es el número de documento de la persona?'); },
+      ayuda: 'Escribí solo los números del DNI, sin puntos. Se necesita para identificar el turno.',
+      validar: function (v) {
+        v = v.replace(/[.\s-]/g, '');
+        if (!/^\d{6,9}$/.test(v)) { return { error: 'El documento debe tener entre 6 y 9 números, sin letras.' }; }
+        return { valor: v };
+      } },
+    telefono: { n: 4, siguiente: 'cobertura', autocomplete: 'tel', modo: 'tel', opcional: true,
+      pregunta: function () { return t('¿Cuál es tu teléfono de contacto?', '¿Cuál es el teléfono de contacto de la persona?'); },
+      ayuda: 'Es opcional. Si no tenés teléfono, tocá "No tengo teléfono".',
+      validar: function (v) {
+        v = v.replace(/[\s()-]/g, '');
+        if (v === '') { return { valor: '' }; }
+        if (!/^\+?\d{8,15}$/.test(v)) { return { error: 'El teléfono debe tener entre 8 y 15 números.' }; }
+        return { valor: v };
+      } }
+  };
+
+  function renderCampo(clave) {
+    var c = CAMPOS[clave];
+    var q = c.pregunta();
+    setPregunta(q, c.ayuda);
+    var h = '';
+    if (clave === 'nombre' && estado.modo === 'acompanante') {
+      h += '<div class="consejo" role="note"><strong>Consejo:</strong> Podés ayudar a leer las preguntas y explicar las opciones. ' +
+        'Dejá que la persona elija y responda por sí misma siempre que pueda. Pedile permiso antes de cargar sus datos.</div>';
+    }
+    h += '<form id="formCampo" novalidate>' +
+      '<h1 id="titulo"><label for="campo">' + esc(q) + '</label></h1>' +
+      '<p class="sub">Datos personales: pregunta ' + c.n + ' de 4</p>' +
+      '<p id="ayudaCampo" class="ayuda">' + esc(c.ayuda) + '</p>' +
+      '<div class="campo-fila"><input id="campo" type="' + (c.modo === 'tel' ? 'tel' : 'text') + '" inputmode="' + c.modo + '" autocomplete="' + c.autocomplete +
+      '" maxlength="60" aria-describedby="ayudaCampo error" value="' + esc(estado.datos[clave]) + '">' +
+      (SR ? '<button type="button" id="btnHablar" class="btn sec" data-accion="hablar" data-valor="' + clave + '">🎤 Hablar</button>' : '') +
+      '</div><p id="estadoVoz" class="estado" role="status"></p><p id="error" class="error" role="alert"></p>' +
+      '<div class="botones"><button type="submit" class="btn prim">Siguiente</button>' +
+      (c.opcional ? btn('No tengo teléfono', 'omitirTelefono', 'sec') : '') + '</div></form>' + barraAcciones();
+    $pantalla.innerHTML = h;
+  }
+  RENDER.nombre = function () { renderCampo('nombre'); };
+  RENDER.apellido = function () { renderCampo('apellido'); };
+  RENDER.documento = function () { renderCampo('documento'); };
+  RENDER.telefono = function () { renderCampo('telefono'); };
+
+  function enviarCampo() {
+    var clave = estado.pantalla, c = CAMPOS[clave];
+    var input = document.getElementById('campo');
+    var r = c.validar(input.value);
+    if (r.error) {
+      document.getElementById('error').textContent = 'Atención: ' + r.error;
+      input.focus();
+      return;
+    }
+    estado.datos[clave] = r.valor;
+    continuarDespuesDeDatos(c);
+  }
+  function continuarDespuesDeDatos(c) {
+    if (estado.editando) { estado.editando = false; mostrar('resumen'); } else { mostrar(c.siguiente); }
+  }
+
+  // ------------------------------------------------------------------
+  // Pantallas
+  // ------------------------------------------------------------------
+  RENDER.quien = function () {
+    setPregunta('¿Quién está usando el sistema?', 'Elegí la primera opción si el turno es para vos. Elegí la segunda si estás ayudando a otra persona.');
+    $pantalla.innerHTML = '<h1 id="titulo">¿Quién está usando el sistema?</h1>' +
+      '<p class="ayuda">Te vamos a hacer 5 pasos sencillos para pedir un turno médico.</p>' +
+      '<div class="botones">' + btn('Estoy solicitando mi turno', 'modo', 'prim', 'paciente') +
+      btn('Estoy acompañando a otra persona', 'modo', 'prim', 'acompanante') + '</div>' + barraAcciones();
+  };
+
+  RENDER.cobertura = function () {
+    setPregunta('¿Qué cobertura médica tenés?', 'Elegí una opción. "Particular" es para quien no usa obra social. Según tu cobertura, te mostramos los hospitales donde podés pedir turno.');
+    var h = '<h1 id="titulo">' + esc(t('¿Qué cobertura médica tenés?', '¿Qué cobertura médica tiene la persona?')) + '</h1>' +
+      '<p class="ayuda">Elegí una opción.</p><div class="botones">';
+    COBERTURAS.forEach(function (c) {
+      h += btn(c + (estado.cobertura === c ? ' (elegida)' : ''), 'cobertura', 'prim', c);
+    });
+    $pantalla.innerHTML = h + '</div>' + barraAcciones();
+  };
+
+  RENDER.especialidad = function () {
+    setPregunta('¿Qué especialidad necesitás?', 'Elegí el tipo de médico o servicio. Si no sabés cuál, "Clínica Médica" es el médico general cuando está disponible.');
+    $pantalla.innerHTML = '<h1 id="titulo">' + esc(t('¿Qué especialidad necesitás?', '¿Qué especialidad necesita la persona?')) + '</h1><p class="ayuda">Buscando opciones…</p>' + barraAcciones();
+    llamar('obtenerEspecialidades', [estado.cobertura], function (res) {
+      if (!res || !res.ok) { return errorServidor(res); }
+      estado.lista = res.especialidades;
+      var h = '<h1 id="titulo">' + esc(t('¿Qué especialidad necesitás?', '¿Qué especialidad necesita la persona?')) + '</h1>';
+      if (!res.especialidades.length) {
+        h += '<p class="info-error" role="alert">Atención: no hay servicios configurados para la cobertura ' + esc(estado.cobertura) +
+          '. Podés volver y elegir otra cobertura, o pedir ayuda.</p>';
+      } else {
+        h += '<p class="ayuda">Mostramos solo las especialidades disponibles con ' + esc(estado.cobertura) + '.</p><div class="botones">';
+        res.especialidades.forEach(function (e, i) { h += btnOpcion(e.nombre, e.explicacion, 'especialidad', String(i)); });
+        h += '</div>';
+      }
+      $pantalla.innerHTML = h + barraAcciones();
+      $pantalla.querySelector('h1').focus();
+    });
+  };
+
+  RENDER.hospital = function () {
+    setPregunta('¿En qué hospital querés el turno?', 'Cada hospital atiende a ciertas coberturas. Mostramos solo los que sirven para tu elección. Tocá el que prefieras.');
+    $pantalla.innerHTML = '<h1 id="titulo">¿En qué hospital querés el turno?</h1><p class="ayuda">Buscando hospitales…</p>' + barraAcciones();
+    llamar('obtenerHospitales', [estado.cobertura, estado.especialidad], function (res) {
+      if (!res || !res.ok) { return errorServidor(res); }
+      estado.lista = res.hospitales;
+      var h = '<h1 id="titulo">' + esc(t('¿En qué hospital querés el turno?', '¿En qué hospital quiere el turno la persona?')) + '</h1>';
+      if (!res.hospitales.length) {
+        h += '<p class="info-error" role="alert">Atención: no hay hospitales configurados para ' + esc(estado.especialidad) +
+          ' con la cobertura ' + esc(estado.cobertura) + '. Volvé atrás y elegí otra especialidad.</p>';
+      } else {
+        h += '<p class="ayuda">Especialidad: ' + esc(estado.especialidad) + '. Cobertura: ' + esc(estado.cobertura) + '.</p><div class="botones">';
+        res.hospitales.forEach(function (x, i) { h += btnOpcion(x.nombre, x.direccion, 'hospital', String(i)); });
+        h += '</div>';
+      }
+      $pantalla.innerHTML = h + barraAcciones();
+      $pantalla.querySelector('h1').focus();
+    });
+  };
+
+  RENDER.dia = function () {
+    if (!estado.hospital) { return mostrar('hospital', { sinHistorial: true }); }
+    setPregunta('¿Qué día te queda bien?', 'Mostramos los días con turnos libres, desde hoy hasta 7 días hábiles después. Tocá el día que prefieras.');
+    $pantalla.innerHTML = '<h1 id="titulo">¿Qué día te queda bien?</h1><p class="ayuda">Buscando días con turnos libres…</p>' + barraAcciones();
+    var hosp = estado.hospital;
+    llamar('obtenerDias', [hosp.hospital_id, hosp.especialidad_id, estado.cobertura], function (res) {
+      if (!res || !res.ok) { return errorServidor(res); }
+      estado.lista = res.dias;
+      var h = '<h1 id="titulo">' + esc(t('¿Qué día te queda bien?', '¿Qué día le queda bien a la persona?')) + '</h1>' +
+        '<p class="ayuda">' + esc(hosp.nombre) + ' — ' + esc(estado.especialidad) + '. Duración estimada: ' + esc(hosp.duracion) + ' minutos.</p>';
+      if (!res.dias.length) {
+        h += '<p class="info-error" role="alert">Atención: no hay turnos libres en los próximos días hábiles. Podés elegir otro hospital.</p>' +
+          '<div class="botones">' + btn('Elegir otro hospital', 'otroHospital', 'sec') + '</div>';
+      } else {
+        h += '<div class="botones">';
+        res.dias.forEach(function (d, i) {
+          h += btnOpcion(d.fecha_texto + (d.es_hoy ? ' (hoy)' : ''), d.cantidad + (d.cantidad === 1 ? ' horario libre' : ' horarios libres'), 'dia', String(i), 'sec');
+        });
+        h += '</div>';
+      }
+      $pantalla.innerHTML = h + barraAcciones();
+      $pantalla.querySelector('h1').focus();
+    });
+  };
+
+  RENDER.horario = function () {
+    if (!estado.hospital) { return mostrar('hospital', { sinHistorial: true }); }
+    if (!estado.dia) { return mostrar('dia', { sinHistorial: true }); }
+    setPregunta('¿Qué horario te queda bien?', 'Tocá el horario que prefieras. Si ninguno te sirve, tocá "Ver más horarios" o elegí otro día.');
+    $pantalla.innerHTML = '<h1 id="titulo">¿Qué horario te queda bien?</h1><p class="ayuda">Buscando horarios libres…</p>' + barraAcciones();
+    var hosp = estado.hospital;
+    llamar('obtenerHorarios', [hosp.hospital_id, hosp.especialidad_id, estado.cobertura, estado.desplazamiento, estado.dia.fecha], function (res) {
+      if (!res || !res.ok) { return errorServidor(res); }
+      estado.lista = res.horarios;
+      estado.siguiente = res.siguienteDesplazamiento;
+      var h = '<h1 id="titulo">' + esc(t('¿Qué horario te queda bien?', '¿Qué horario le queda bien a la persona?')) + '</h1>' +
+        '<p class="ayuda">' + esc(estado.dia.fecha_texto) + ' — ' + esc(hosp.nombre) + '. Duración estimada: ' + esc(hosp.duracion) + ' minutos.</p>';
+      if (!res.horarios.length) {
+        h += '<p class="info-error" role="alert">Atención: ya no quedan horarios libres ese día. Elegí otro día.</p>';
+      } else {
+        h += '<div class="botones">';
+        res.horarios.forEach(function (x, i) { h += btnOpcion(x.hora_inicio + ' hs', '', 'horario', String(i), 'prim'); });
+        h += '</div>';
+      }
+      h += '<div class="botones">';
+      if (res.hayMas) { h += btn('Ver más horarios', 'masHorarios', 'sec'); }
+      if (estado.desplazamiento > 0) { h += btn('Ver los primeros horarios', 'primerosHorarios', 'sec'); }
+      h += btn('Elegir otro día', 'otroDia', 'sec') + btn('Elegir otro hospital', 'otroHospital', 'sec') + '</div>';
+      $pantalla.innerHTML = h + barraAcciones();
+      $pantalla.querySelector('h1').focus();
+    });
+  };
+
+  RENDER.resumen = function () {
+    if (!estado.slot || !estado.hospital) { return mostrar('dia', { sinHistorial: true }); }
+    setPregunta('Revisá los datos y confirmá el turno.', 'Mirá que todo esté bien. Si algo no es correcto, tocá "Modificar datos". El turno se reserva solo cuando tocás "Confirmar turno".');
+    if (!estado.solicitudId) { estado.solicitudId = nuevoCodigoSolicitud(); }
+    var d = estado.datos, s = estado.slot;
+    var fila = function (a, b) { return '<div><dt>' + esc(a) + '</dt><dd>' + esc(b) + '</dd></div>'; };
+    $pantalla.innerHTML = '<h1 id="titulo">Revisá los datos y confirmá el turno</h1>' +
+      '<p class="ayuda">Todavía no reservaste nada. El turno se guarda cuando tocás "Confirmar turno".</p>' +
+      '<dl class="resumen">' + fila('Nombre y apellido', d.nombre + ' ' + d.apellido) + fila('Documento', enmascarar(d.documento)) +
+      fila('Cobertura', estado.cobertura) + fila('Hospital', estado.hospital.nombre) + fila('Especialidad', estado.especialidad) +
+      fila('Fecha', s.fecha_texto) + fila('Hora', s.hora_inicio) + fila('Duración estimada', s.duracion + ' minutos') + '</dl>' +
+      '<div class="botones">' + btn('Confirmar turno', 'confirmar', 'prim') + btn('Modificar datos', 'modificar', 'sec') + '</div>' + barraAcciones();
+  };
+
+  RENDER.modificar = function () {
+    setPregunta('¿Qué querés cambiar?', 'Elegí qué dato querés corregir. Los demás datos se mantienen.');
+    $pantalla.innerHTML = '<h1 id="titulo">¿Qué querés cambiar?</h1><p class="ayuda">Los demás datos se mantienen.</p><div class="botones">' +
+      btn('Nombre', 'cambiar', 'sec', 'nombre') + btn('Apellido', 'cambiar', 'sec', 'apellido') +
+      btn('Documento', 'cambiar', 'sec', 'documento') + btn('Teléfono', 'cambiar', 'sec', 'telefono') +
+      btn('Cobertura', 'cambiar', 'sec', 'cobertura') + btn('Especialidad', 'cambiar', 'sec', 'especialidad') +
+      btn('Hospital', 'cambiar', 'sec', 'hospital') + btn('Día y horario', 'cambiar', 'sec', 'horario') + '</div>' + barraAcciones();
+  };
+
+  RENDER.exito = function () {
+    var r = estado.resultado;
+    setPregunta('Tu turno quedó confirmado.', 'Guardá el código del turno. Es solo una demostración: no es un turno real.');
+    $pantalla.innerHTML = '<h1 id="titulo">¡Listo! Tu turno quedó confirmado</h1>' +
+      '<div class="exito" role="status"><p>Código del turno:</p><p class="codigo">' + esc(r.turnoId) + '</p></div>' +
+      '<dl class="resumen">' + [['Nombre y apellido', r.resumen.nombre + ' ' + r.resumen.apellido], ['Documento', r.resumen.documento],
+        ['Cobertura', r.resumen.cobertura], ['Hospital', r.resumen.hospital], ['Dirección', r.resumen.direccion],
+        ['Especialidad', r.resumen.especialidad], ['Fecha', r.resumen.fecha_texto], ['Hora', r.resumen.hora_inicio],
+        ['Duración estimada', r.resumen.duracion + ' minutos']].map(function (p) {
+          return '<div><dt>' + esc(p[0]) + '</dt><dd>' + esc(p[1]) + '</dd></div>';
+        }).join('') + '</dl>' +
+      '<p class="nota" role="note">Recordá: es una demostración con horarios simulados. No es un turno real.</p>' +
+      '<div class="botones">' + btn('Pedir otro turno', 'nuevo', 'prim') + '</div>';
+  };
+
+  RENDER.ayuda = function () {
+    var texto = estado.ayudaDe || 'Respondé la pregunta que aparece en pantalla y tocá el botón para seguir.';
+    setPregunta('Ayuda', texto);
+    $pantalla.innerHTML = '<h1 id="titulo">Ayuda</h1><div class="nota" role="note"><p>' + esc(texto) + '</p></div>' +
+      '<ul><li>Podés escribir o, si tu dispositivo lo permite, tocar "Hablar".</li>' +
+      '<li>"Volver" te lleva a la pantalla anterior sin borrar lo que escribiste.</li>' +
+      '<li>"Repetir la pregunta" la lee en voz alta, si tu dispositivo puede.</li>' +
+      '<li>Antes de reservar vas a poder revisar todo.</li></ul>' +
+      '<div class="consejo" role="note"><p><strong>¿Preferís hablar con una persona?</strong></p>' +
+      '<p>Llamá al operador: <a href="tel:' + TELEFONO_OPERADOR_LINK + '"><strong>' + esc(TELEFONO_OPERADOR_TEXTO) + '</strong></a></p>' +
+      '<p class="ayuda">Número ficticio de demostración.</p></div><div class="botones">' + btn('Entendido, volver', 'volver', 'prim') + '</div>';
+  };
+
+  // ------------------------------------------------------------------
+  // Acciones (botones)
+  // ------------------------------------------------------------------
+  ACCIONES.volver = volver;
+  ACCIONES.reintentar = function () { if (estado.reintento) { estado.reintento(); } };
+  ACCIONES.repetir = function () {
+    var titulo = $pantalla.querySelector('h1');
+    if (titulo) { titulo.focus(); }
+    if (HAY_VOZ_SALIDA) { hablar(estado.preguntaActual); mostrarEstado('Leyendo la pregunta…'); }
+    else { mostrarEstado('Tu dispositivo no puede leer en voz alta. La pregunta es: ' + estado.preguntaActual); }
+  };
+  ACCIONES.ayuda = function () { estado.ayudaDe = estado.ayudaTexto; mostrar('ayuda'); };
+  ACCIONES.modo = function (v) { estado.modo = v === 'acompanante' ? 'acompanante' : 'paciente'; mostrar('nombre'); };
+  ACCIONES.hablar = function (clave) { escucharEn('campo', clave); };
+  ACCIONES.omitirTelefono = function () { estado.datos.telefono = ''; continuarDespuesDeDatos(CAMPOS.telefono); };
+  ACCIONES.cobertura = function (v) {
+    if (estado.cobertura !== v) { estado.cobertura = v; estado.especialidad = null; estado.hospital = null; estado.dia = null; estado.slot = null; estado.desplazamiento = 0; }
+    mostrar('especialidad');
+  };
+  ACCIONES.especialidad = function (i) {
+    var e = estado.lista[Number(i)]; if (!e) { return; }
+    if (estado.especialidad !== e.nombre) { estado.especialidad = e.nombre; estado.hospital = null; estado.dia = null; estado.slot = null; estado.desplazamiento = 0; }
+    mostrar('hospital');
+  };
+  ACCIONES.hospital = function (i) {
+    var h = estado.lista[Number(i)]; if (!h) { return; }
+    estado.hospital = h; estado.dia = null; estado.slot = null; estado.desplazamiento = 0;
+    mostrar('dia');
+  };
+  ACCIONES.dia = function (i) {
+    var d = estado.lista[Number(i)]; if (!d) { return; }
+    estado.dia = d; estado.slot = null; estado.desplazamiento = 0;
+    mostrar('horario');
+  };
+  ACCIONES.otroDia = function () { estado.slot = null; estado.desplazamiento = 0; volver(); };
+  ACCIONES.horario = function (i) { var s = estado.lista[Number(i)]; if (!s) { return; } estado.slot = s; estado.solicitudId = ''; mostrar('resumen'); };
+  ACCIONES.masHorarios = function () { estado.desplazamiento = estado.siguiente; mostrar('horario', { sinHistorial: true }); };
+  ACCIONES.primerosHorarios = function () { estado.desplazamiento = 0; mostrar('horario', { sinHistorial: true }); };
+  ACCIONES.otroHospital = function () { estado.slot = null; estado.dia = null; mostrar('hospital'); };
+  ACCIONES.modificar = function () { mostrar('modificar'); };
+  ACCIONES.cambiar = function (que) {
+    if (CAMPOS[que]) { estado.editando = true; mostrar(que); }
+    else if (que === 'horario') { estado.desplazamiento = 0; estado.dia = null; mostrar('dia'); }
+    else { mostrar(que); }
+  };
+  ACCIONES.nuevo = reiniciarTodo;
+
+  ACCIONES.confirmar = function () {
+    var d = estado.datos, s = estado.slot;
+    var carga = {
+      nombre: d.nombre, apellido: d.apellido, documento: d.documento, telefono: d.telefono, cobertura: estado.cobertura,
+      hospitalId: estado.hospital.hospital_id, especialidadId: estado.hospital.especialidad_id,
+      fecha: s.fecha, hora: s.hora_inicio, creadoPor: estado.modo === 'acompanante' ? 'Acompañante' : 'Paciente',
+      solicitudId: estado.solicitudId
+    };
+    estado.ocupado = true;
+    Array.prototype.forEach.call($pantalla.querySelectorAll('button'), function (b) { b.disabled = true; });
+    mostrarEstado('Guardando tu turno… No cierres esta pantalla.');
+    var lento = setTimeout(function () { mostrarEstado('Está tardando más de lo normal. Esperá, seguimos guardando…'); }, 15000);
+    google.script.run
+      .withSuccessHandler(function (res) { clearTimeout(lento); estado.ocupado = false; mostrarEstado(''); resultadoConfirmacion(res); })
+      .withFailureHandler(function () { clearTimeout(lento); errorConexion(ACCIONES.confirmar, true); })
+      .confirmarTurno(carga);
+  };
+
+  function resultadoConfirmacion(res) {
+    if (res && res.ok) {
+      estado.resultado = res;
+      estado.pila = []; estado.pantalla = 'exito'; estado.token++;
+      estado.datos = { nombre: '', apellido: '', documento: '', telefono: '' };
+      estado.solicitudId = '';
+      RENDER.exito(); actualizarProgreso(5); $pantalla.querySelector('h1').focus(); window.scrollTo(0, 0);
+      return;
+    }
+    var msg = (res && res.mensaje) || 'No se pudo guardar el turno.';
+    var codigo = res && res.codigo;
+    var botones = '';
+    if (codigo === 'HORARIO_NO_DISPONIBLE') {
+      botones = btn('Ver horarios nuevos', 'masHorariosDesdeCero', 'prim');
+      ACCIONES.masHorariosDesdeCero = function () { estado.slot = null; estado.dia = null; estado.desplazamiento = 0; estado.solicitudId = ''; mostrar('dia', { sinHistorial: true }); };
+    } else if (codigo === 'COBERTURA_NO_VALIDA' || codigo === 'SERVICIO_NO_VALIDO') {
+      botones = btn('Elegir otro hospital', 'otroHospital', 'prim');
+    } else if (codigo === 'DATOS_INVALIDOS') {
+      botones = btn('Modificar datos', 'modificar', 'prim');
+    } else {
+      botones = btn('Intentar de nuevo', 'confirmar', 'prim');
+    }
+    $pantalla.innerHTML = '<h1 id="titulo">No se pudo reservar</h1><p class="info-error" role="alert">Atención: ' + esc(msg) + '</p>' +
+      '<p>Tus datos siguen guardados en esta pantalla.</p><div class="botones">' + botones + '</div>' + barraAcciones();
+    $pantalla.querySelector('h1').focus();
+    setPregunta('No se pudo reservar.', msg);
+  }
+
+  // ------------------------------------------------------------------
+  // Eventos
+  // ------------------------------------------------------------------
+  $pantalla.addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-accion]');
+    if (!b || estado.ocupado) { return; }
+    var fn = ACCIONES[b.getAttribute('data-accion')];
+    if (fn) { fn(b.getAttribute('data-valor')); }
+  });
+  $pantalla.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    if (CAMPOS[estado.pantalla]) { enviarCampo(); }
+  });
+
+  // Tamaño de letra
+  var tamanos = [['', 'normal'], ['texto-grande', 'grande'], ['texto-muy-grande', 'muy grande']];
+  var idxTam = 0;
+  document.getElementById('btnTexto').addEventListener('click', function () {
+    idxTam = (idxTam + 1) % tamanos.length;
+    document.documentElement.className = tamanos[idxTam][0];
+    this.textContent = 'Letra: ' + tamanos[idxTam][1];
+  });
+
+  // Lectura en voz alta (solo si el dispositivo la permite)
+  if (HAY_VOZ_SALIDA) {
+    document.getElementById('lblVoz').hidden = false;
+    document.getElementById('chkVoz').addEventListener('change', function () {
+      estado.voz = this.checked;
+      if (estado.voz) { hablar(estado.preguntaActual); } else { detenerVoz(); }
+    });
+  }
+
+  mostrar('quien');
+}
+
+// Esperamos a que la página termine de cargar antes de buscar los elementos.
+(function () {
+  function arrancar() {
+    var faltan = ['pantalla', 'estado', 'btnTexto', 'chkVoz', 'lblVoz', 'bloqueProgreso', 'pasoTexto', 'barra'].filter(function (id) {
+      return !document.getElementById(id);
+    });
+    if (faltan.length) {
+      document.body.insertAdjacentHTML('afterbegin', '<p style="padding:1rem;border:3px solid #a1160a">Error de instalación: en Index.html faltan estos elementos: ' +
+        faltan.join(', ') + '. Copiá de nuevo el archivo Index.html completo.</p>');
+      return;
+    }
+    iniciarApp();
+  }
+  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', arrancar); } else { arrancar(); }
+})();
+</script>
+
+</body>
+</html>
